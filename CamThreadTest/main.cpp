@@ -11,7 +11,7 @@
 #include <chrono>
 
 static bool running = true;
-static std::chrono::high_resolution_clock::time_point last_delete = std::chrono::high_resolution_clock::now();
+static std::chrono::system_clock::time_point last_delete = std::chrono::system_clock::now();
 
 /*
 cv::Mat resize_frame(cv::Mat frame, int height, int width) {
@@ -28,21 +28,23 @@ cv::Mat preprocess_frame(cv::Mat frame) {
 
 // MAYBE USE std::chrono::system_clock
 
-int getFPS(std::chrono::high_resolution_clock::time_point t1, int frame_count) {
-	std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
-	std::chrono::duration<double, std::milli> time_span = t2 - t1;
-	return time_span.count() / frame_count;
+int getFPS(std::chrono::system_clock::time_point t1, int frame_count) {
+	std::chrono::system_clock::time_point t2 = std::chrono::system_clock::now();
+	auto diff = std::chrono::duration_cast<std::chrono::milliseconds>(t2  - t1);
+	return diff.count() / frame_count;
 }
  
-bool isTimeFor(std::chrono::high_resolution_clock::time_point last_time, int ms) {
-	std::chrono::high_resolution_clock::time_point now = std::chrono::high_resolution_clock::now();
-	std::chrono::duration<double, std::milli> diff = now - last_time;
+bool isTimeFor(std::chrono::system_clock::time_point last_time, int ms) {
+	std::chrono::system_clock::time_point now = std::chrono::system_clock::now();
+	auto diff = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_time);
 	return diff.count() > ms;
 }
 
 void Cam_Thread(std::string url, std::string cam_name) {
-	std::chrono::high_resolution_clock::time_point init_time = std::chrono::high_resolution_clock::now();
-	std::chrono::high_resolution_clock::time_point last_save = std::chrono::high_resolution_clock::now();
+	const int SAVE_DURATION = 600000;
+	const int FPS = 20;
+	const std::chrono::system_clock::time_point INIT_TIME = std::chrono::system_clock::now();
+	std::chrono::system_clock::time_point last_save = std::chrono::system_clock::now();
 	cv::VideoCapture* stream = new cv::VideoCapture(url, cv::CAP_FFMPEG);
 	int frames_captured = 0;
 	while (running) {
@@ -54,7 +56,7 @@ void Cam_Thread(std::string url, std::string cam_name) {
 
 				// Resizing leads to slow processing times, leave at native size
 				//cv::resize(unprocessed_frame, processed_frame, cv::Size(1280, 720), cv::INTER_LINEAR);
-				cv::putText(processed_frame, "FPS : " + std::to_string(getFPS(init_time, frames_captured)),
+				cv::putText(processed_frame, "FPS : " + std::to_string(getFPS(INIT_TIME, frames_captured)),
 					cv::Point(processed_frame.cols / 20, processed_frame.rows / 10),
 					cv::FONT_HERSHEY_DUPLEX, 1.0, (std::sin(frames_captured * 0.2) > 0) ? CV_RGB(255, 255, 255) : CV_RGB(255, 0, 0), 2);
 				cv::imshow(cam_name, processed_frame);
@@ -63,7 +65,10 @@ void Cam_Thread(std::string url, std::string cam_name) {
 			}
 
 			// 1. Save Frame
-
+			if (isTimeFor(last_save, SAVE_DURATION)) {
+				
+				last_save = std::chrono::system_clock::now();
+			}
 
 		}
 	}
