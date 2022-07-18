@@ -41,9 +41,11 @@ void Cam_Thread(std::string url, std::string cam_name) {
 			cv::Mat unprocessed_frame;
 			if (stream->read(unprocessed_frame)) {
 				cv::Mat processed_frame = unprocessed_frame;
+
+				// Resizing leads to slow processing times, leave at native size
 				//cv::resize(unprocessed_frame, processed_frame, cv::Size(1280, 720), cv::INTER_LINEAR);
 
-				cv::putText(processed_frame, "FPS : " + std::to_string(getFPS(init_time, frames_captured)), cv::Point(processed_frame.cols / 10, processed_frame.rows / 10), cv::FONT_HERSHEY_DUPLEX, 1.0, (std::sin(frames_captured * 0.2) > 0) ? CV_RGB(255, 255, 255) : CV_RGB(255, 0, 0), 2);
+				cv::putText(processed_frame, "FPS : " + std::to_string(getFPS(init_time, frames_captured)), cv::Point(processed_frame.cols / 20, processed_frame.rows / 10), cv::FONT_HERSHEY_DUPLEX, 1.0, (std::sin(frames_captured * 0.2) > 0) ? CV_RGB(255, 255, 255) : CV_RGB(255, 0, 0), 2);
 				cv::imshow(cam_name, processed_frame);
 
 				frames_captured++;
