@@ -61,31 +61,35 @@ void Cam_Thread(std::string url, std::string cam_name) {
 	const int FPS = 20;
 	const std::chrono::system_clock::time_point INIT_TIME = std::chrono::system_clock::now();
 	std::chrono::system_clock::time_point last_save = std::chrono::system_clock::now();
-	cv::VideoCapture* stream = new cv::VideoCapture(url, cv::CAP_FFMPEG);
+	cv::VideoCapture stream = cv::VideoCapture(url, cv::CAP_FFMPEG);
 	long frames_captured = 0;
-	int stream_width = stream->get(cv::CAP_PROP_FRAME_WIDTH);
-	int stream_height = stream->get(cv::CAP_PROP_FRAME_HEIGHT);
+	int stream_width = stream.get(cv::CAP_PROP_FRAME_WIDTH);
+	int stream_height = stream.get(cv::CAP_PROP_FRAME_HEIGHT);
 	std::string save_destination = getFormattedSaveName(cam_name, last_save, ".avi");
-	//cv::VideoWriter writer = cv::VideoWriter(save_destination, cv::VideoWriter::fourcc('m', 'p', '4', 'v'), FPS, cv::Size(stream_width, stream_height));
-	while (running) {
-		if (!first_start) {
-			std::cout << cam_name << " has Started." << "\n";
-			first_start = true;
-		}
-		
-		std::cout << cam_name << " running." << "\n";
 
-		if (stream->isOpened()) {
+	cv::VideoWriter writer;
+	
+	//cv::VideoWriter(save_destination, cv::VideoWriter::fourcc('m', 'p', '4', 'v'), FPS, cv::Size(stream_width, stream_height));
+
+	while (running) {
+		if (stream.isOpened()) {
+			if (!first_start) {
+				writer.open(save_destination, cv::VideoWriter::fourcc('m', 'p', '4', 'v'), FPS, cv::Size(stream_width, stream_height));
+				std::cout << cam_name << " has Started." << "\n";
+				first_start = true;
+			}	
 			cv::namedWindow(cam_name);
 			cv::Mat unprocessed_frame;
-			if (stream->read(unprocessed_frame)) {
+			if (stream.read(unprocessed_frame)) {
 				cv::Mat processed_frame = unprocessed_frame;
 				// Resizing leads to slow processing times, leave at native size
 				//cv::resize(unprocessed_frame, processed_frame, cv::Size(1280, 720), cv::INTER_LINEAR);
 				cv::putText(processed_frame, "FPS : " + std::to_string(getFPS(INIT_TIME, frames_captured)),
 					cv::Point(processed_frame.cols / 20, processed_frame.rows / 10),
 					cv::FONT_HERSHEY_DUPLEX, 1.0, (std::sin(frames_captured * 0.2) > 0) ? CV_RGB(255, 255, 255) : CV_RGB(255, 0, 0), 2);
-				//writer.write(unprocessed_frame);
+				
+				writer.write(processed_frame);
+				
 				cv::imshow(cam_name, processed_frame);
 				frames_captured++;
 				cv::waitKey(1);
@@ -93,9 +97,8 @@ void Cam_Thread(std::string url, std::string cam_name) {
 			if (isTimeFor(last_save, SAVE_DURATION)) {
 				last_save = std::chrono::system_clock::now();
 				std::string save_destination = getFormattedSaveName(cam_name, last_save, ".avi");
-
-				//writer.release();
-				//writer = cv::VideoWriter(save_destination, cv::VideoWriter::fourcc('m', 'p', '4', 'v'), FPS, cv::Size(stream_width, stream_height));
+				writer.release();
+				writer.open(save_destination, cv::VideoWriter::fourcc('m', 'p', '4', 'v'), FPS, cv::Size(stream_width, stream_height));
 				std::cout << cam_name << " - Saving and Starting new video writer." << "\n";
 			}
 		}
@@ -110,8 +113,8 @@ int main() {
 
 	// Start video capture with a new thread
 	
+	//std::thread cam1(Cam_Thread, "rtsp://beverly1:0FtYard1@192.168.1.245/live", "Beverly_Front");
 	std::thread cam2(Cam_Thread, "rtsp://admin:jeffjadd@192.168.1.246/live", "Beverly_Back");
-	std::thread cam1(Cam_Thread, "rtsp://beverly1:0FtYard1@192.168.1.245/live", "Beverly_Front");
 
 	while (running) {
 		std::string input;
@@ -122,9 +125,8 @@ int main() {
 	}
 
 	// Wait for threads to finish
-	
+	//cam1.join();
 	cam2.join();
-	cam1.join();
 
 	return 1;
 }
